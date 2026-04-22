@@ -5,12 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoanRequestDTO {
-    private BigDecimal amount;
-    private Integer termMonths;
+public class TrustScoreResponseDTO {
+    private BigDecimal scoreValue;
+    private String level;
+    private LocalDate calculationDate;
 }
