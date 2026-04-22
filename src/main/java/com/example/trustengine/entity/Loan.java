@@ -44,6 +44,9 @@ public class Loan {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
+    @Column(name = "pending_balance", nullable = false, precision = 15, scale = 2)
+    private BigDecimal pendingBalance;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
