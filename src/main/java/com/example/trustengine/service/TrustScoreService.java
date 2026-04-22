@@ -8,6 +8,8 @@ import com.example.trustengine.repository.TrustScoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.example.trustengine.dto.TrustScoreResponseDTO;
+import com.example.trustengine.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -18,6 +20,29 @@ public class TrustScoreService {
 
     private final TrustScoreRepository trustScoreRepository;
     private final FinancialSummaryRepository financialSummaryRepository;
+    private final UserRepository userRepository;
+
+    /** Devuelve el objeto de respuesta completo con nivel calculado. */
+    public TrustScoreResponseDTO getTrustScoreForUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        TrustScore ts = trustScoreRepository
+                .findFirstByUserIdOrderByCalculationDateDesc(user.getId())
+                .orElseGet(() -> calculateAndSave(user)); // Si no tiene uno, lo calculamos en tiempo real (CA3)
+
+        return TrustScoreResponseDTO.builder()
+                .scoreValue(ts.getScoreValue())
+                .level(determineLevel(ts.getScoreValue()))
+                .calculationDate(ts.getCalculationDate())
+                .build();
+    }
+
+    private String determineLevel(BigDecimal score) {
+        if (score.compareTo(new BigDecimal("70")) >= 0) return "ALTO";
+        if (score.compareTo(new BigDecimal("40")) >= 0) return "MEDIO";
+        return "BAJO";
+    }
 
     /**
      * Calcula el Trust Score de un usuario basado en la fórmula:
