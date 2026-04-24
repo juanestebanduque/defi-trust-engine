@@ -4,6 +4,7 @@ import com.example.trustengine.dto.AuthResponse;
 import com.example.trustengine.dto.ForgotPasswordRequest;
 import com.example.trustengine.dto.LoginRequest;
 import com.example.trustengine.dto.RegisterRequest;
+import com.example.trustengine.dto.UpdateProfileRequest;
 import com.example.trustengine.entity.Profile;
 import com.example.trustengine.entity.User;
 import com.example.trustengine.repository.ProfileRepository;
@@ -52,7 +53,7 @@ public class UserService {
         profileRepository.save(profile);
 
         String token = jwtService.generateToken(user.getEmail());
-        return new AuthResponse(token, user.getEmail(), user.getRole());
+        return new AuthResponse(user.getId(), token, user.getEmail(), user.getRole());
     }
 
     /** Autentica al usuario y devuelve un token JWT. */
@@ -81,7 +82,7 @@ public class UserService {
         userRepository.save(user);
 
         String token = jwtService.generateToken(user.getEmail());
-        return new AuthResponse(token, user.getEmail(), user.getRole());
+        return new AuthResponse(user.getId(), token, user.getEmail(), user.getRole());
     }
 
     /** Restablece la contraseña si la respuesta de seguridad es correcta. */
@@ -96,5 +97,42 @@ public class UserService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    /** Actualiza los datos del perfil y del usuario. */
+    @Transactional
+    public void updateUserProfile(Long userId, UpdateProfileRequest request) {
+        Profile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Perfil no encontrado para el usuario."));
+
+        if (request.getFirstName() != null && request.getLastName() != null) {
+            profile.setFullName(request.getFirstName() + " " + request.getLastName());
+        } else if (request.getFirstName() != null) {
+            // Keep last name if only first name is provided
+            String currentLastName = profile.getFullName().contains(" ") ? profile.getFullName().substring(profile.getFullName().lastIndexOf(" ") + 1) : "";
+            profile.setFullName(request.getFirstName() + " " + currentLastName);
+        } else if (request.getLastName() != null) {
+            // Keep first name if only last name is provided
+            String currentFirstName = profile.getFullName().contains(" ") ? profile.getFullName().substring(0, profile.getFullName().indexOf(" ")) : profile.getFullName();
+            profile.setFullName(currentFirstName + " " + request.getLastName());
+        }
+
+        if (request.getPhone() != null) profile.setPhone(request.getPhone());
+        if (request.getAddress() != null) profile.setAddress(request.getAddress());
+        if (request.getBlockchainHashId() != null) profile.setBlockchainHashId(request.getBlockchainHashId());
+
+        profileRepository.save(profile);
+    }
+
+    /** Obtiene los datos del usuario a partir de un token JWT. */
+    public AuthResponse getUserByToken(String token) {
+        if (!jwtService.isTokenValid(token)) {
+            throw new IllegalArgumentException("Token inválido o expirado.");
+        }
+        String email = jwtService.extractSubject(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
+        
+        return new AuthResponse(user.getId(), token, user.getEmail(), user.getRole());
     }
 }

@@ -26,13 +26,13 @@ public class Profile {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(nullable = false)
+    @Column
     private String phone;
 
-    @Column(nullable = false)
+    @Column
     private String address;
 
-    @Column(name = "blockchain_hash_id", nullable = false, unique = true)
+    @Column(name = "blockchain_hash_id", unique = true)
     private String blockchainHashId;
 
     @CreationTimestamp

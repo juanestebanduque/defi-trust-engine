@@ -26,13 +26,10 @@ public class RegisterRequest {
     @NotBlank(message = "La respuesta de seguridad es obligatoria")
     private String securityAnswer;
 
-    @NotBlank(message = "El teléfono es obligatorio")
     private String phone;
 
-    @NotBlank(message = "La dirección es obligatoria")
     private String address;
 
-    @NotBlank(message = "La dirección de billetera (Blockchain Hash ID) es obligatoria")
     private String blockchainHashId;
 
     private String role;   // USER | ADMIN
