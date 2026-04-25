@@ -32,4 +32,13 @@ public class AuthController {
         userService.resetPassword(request);
         return ResponseEntity.ok("Contraseña restablecida exitosamente.");
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponse> getMe(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Token inválido o ausente. Asegúrate de enviarlo como 'Bearer <token>' en el header Authorization.");
+        }
+        String token = authHeader.substring(7);
+        return ResponseEntity.ok(userService.getUserByToken(token));
+    }
 }
