@@ -31,6 +31,12 @@ public class User {
     @Column(nullable = false, length = 20)
     private String status;
 
+    @Column(name = "security_question", nullable = false)
+    private String securityQuestion;
+
+    @Column(name = "security_answer", nullable = false)
+    private String securityAnswer;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
