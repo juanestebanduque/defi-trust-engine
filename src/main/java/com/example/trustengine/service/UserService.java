@@ -8,6 +8,7 @@ import com.example.trustengine.entity.Profile;
 import com.example.trustengine.entity.User;
 import com.example.trustengine.repository.ProfileRepository;
 import com.example.trustengine.repository.UserRepository;
+import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,13 +56,29 @@ public class UserService {
     }
 
     /** Autentica al usuario y devuelve un token JWT. */
+    @Transactional
     public AuthResponse authenticate(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas."));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Credenciales inválidas.");
+        if (user.getLockoutTime() != null && user.getLockoutTime().isAfter(OffsetDateTime.now())) {
+            throw new IllegalArgumentException("Tu cuenta está temporalmente bloqueada. Intenta de nuevo más tarde.");
         }
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+            if (user.getFailedLoginAttempts() >= 3) {
+                user.setLockoutTime(OffsetDateTime.now().plusMinutes(15));
+                userRepository.save(user);
+                throw new IllegalArgumentException("Cuenta bloqueada temporalmente por múltiples intentos fallidos.");
+            }
+            userRepository.save(user);
+            throw new IllegalArgumentException("Credenciales inválidas. Intentos fallidos: " + user.getFailedLoginAttempts());
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLockoutTime(null);
+        userRepository.save(user);
 
         String token = jwtService.generateToken(user.getEmail());
         return new AuthResponse(token, user.getEmail(), user.getRole());

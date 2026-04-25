@@ -37,6 +37,13 @@ public class User {
     @Column(name = "security_answer", nullable = false)
     private String securityAnswer;
 
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "lockout_time")
+    private OffsetDateTime lockoutTime;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
