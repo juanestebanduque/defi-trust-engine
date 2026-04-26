@@ -5,8 +5,11 @@ import com.example.trustengine.dto.ForgotPasswordRequest;
 import com.example.trustengine.dto.LoginRequest;
 import com.example.trustengine.dto.RegisterRequest;
 import com.example.trustengine.dto.UpdateProfileRequest;
+import com.example.trustengine.dto.UserProfileResponse;
+import com.example.trustengine.entity.FinancialSummary;
 import com.example.trustengine.entity.Profile;
 import com.example.trustengine.entity.User;
+import com.example.trustengine.repository.FinancialSummaryRepository;
 import com.example.trustengine.repository.ProfileRepository;
 import com.example.trustengine.repository.UserRepository;
 import java.time.OffsetDateTime;
@@ -21,6 +24,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
+    private final FinancialSummaryRepository financialSummaryRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -69,7 +73,7 @@ public class UserService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
             if (user.getFailedLoginAttempts() >= 3) {
-                user.setLockoutTime(OffsetDateTime.now().plusMinutes(15));
+                user.setLockoutTime(OffsetDateTime.now().plusMinutes(5));
                 userRepository.save(user);
                 throw new IllegalArgumentException("Cuenta bloqueada temporalmente por múltiples intentos fallidos.");
             }
@@ -134,5 +138,31 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
         
         return new AuthResponse(user.getId(), token, user.getEmail(), user.getRole());
+    }
+
+    /** Devuelve el perfil completo del usuario autenticado: cuenta + perfil + resumen financiero. */
+    public UserProfileResponse getMyProfile(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
+
+        Profile profile = profileRepository.findByUserId(user.getId()).orElse(null);
+
+        FinancialSummary fs = financialSummaryRepository.findByUserId(user.getId()).orElse(null);
+
+        return UserProfileResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .fullName(profile != null ? profile.getFullName() : null)
+                .phone(profile != null ? profile.getPhone() : null)
+                .address(profile != null ? profile.getAddress() : null)
+                .blockchainHashId(profile != null ? profile.getBlockchainHashId() : null)
+                .totalLoansTaken(fs != null ? fs.getTotalLoansTaken() : java.math.BigDecimal.ZERO)
+                .totalRepaid(fs != null ? fs.getTotalRepaid() : java.math.BigDecimal.ZERO)
+                .missedPayments(fs != null ? fs.getMissedPayments() : 0)
+                .currentDebt(fs != null ? fs.getCurrentDebt() : java.math.BigDecimal.ZERO)
+                .build();
     }
 }
