@@ -17,6 +17,7 @@ public class TrustScoreController {
 
     private final TrustScoreService trustScoreService;
 
+    /** CA1 + CA2 + CA3: Obtener el Trust Score actual con nivel y desglose. */
     @GetMapping("/me")
     public ResponseEntity<?> getMyTrustScore(Principal principal) {
         if (principal == null) {
@@ -26,6 +27,8 @@ public class TrustScoreController {
         try {
             TrustScoreResponseDTO response = trustScoreService.getTrustScoreForUser(principal.getName());
             return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error al consultar el trust score: " + e.getMessage());
         }

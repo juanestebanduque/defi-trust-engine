@@ -15,4 +15,12 @@ public class TrustScoreResponseDTO {
     private BigDecimal scoreValue;
     private String level;
     private LocalDate calculationDate;
+
+    // Desglose de factores para transparencia
+    private BigDecimal punctualityScore;
+    private BigDecimal activityScore;
+    private BigDecimal stabilityScore;
+
+    // Descripción legible del nivel
+    private String levelDescription;
 }
