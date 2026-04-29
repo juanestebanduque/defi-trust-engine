@@ -1,59 +1,73 @@
+import { useEffect, useState } from 'react';
 import { Badge } from './ui/badge';
-import { Shield, CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Copy, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { useTheme } from '../context/ThemeContext';
+import { getStoredProfileData, getEmail, getUserId } from '../services/session';
+import { transactionService, type TransactionResponse } from '../services/transactionService';
 
 export function Blockchain() {
   const { isDarkMode } = useTheme();
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const profile = getStoredProfileData();
+  const email = getEmail();
+  const userId = getUserId();
+
   const verificationStatus = {
-    identity: true,
-    wallet: true,
-    kyc: true,
-    email: true
+    identity: Boolean(profile.firstName.trim() && profile.lastName.trim()),
+    wallet: Boolean(profile.blockchainHashId.trim()),
+    kyc: Boolean(profile.phone.trim()),
+    email: Boolean(email),
   };
 
-  const recentBlocks = [
-    {
-      id: 1,
-      type: 'Loan Agreement',
-      hash: '0x7f3a9b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1',
-      timestamp: '2026-04-20 14:23:45',
-      status: 'confirmed',
-      confirmations: 24
-    },
-    {
-      id: 2,
-      type: 'Payment',
-      hash: '0x4e2d1a5f6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3',
-      timestamp: '2026-04-18 09:15:22',
-      status: 'confirmed',
-      confirmations: 156
-    },
-    {
-      id: 3,
-      type: 'Profile Update',
-      hash: '0x9c6b3d8e1f2a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9',
-      timestamp: '2026-04-15 16:42:11',
-      status: 'confirmed',
-      confirmations: 342
-    },
-    {
-      id: 4,
-      type: 'Trust Score Update',
-      hash: '0x2a1f7e4c8b5d9e6f0a3b1c4d2e5f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4',
-      timestamp: '2026-04-10 11:30:00',
-      status: 'confirmed',
-      confirmations: 567
-    }
-  ];
+  const blockchainId = profile.blockchainHashId.trim() || '—';
 
-  const userBlockchainId = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1';
+  const fetchTransactions = () => {
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
+    transactionService.getByUser(userId)
+      .then(setTransactions)
+      .catch(() => toast.error('No se pudieron cargar las transacciones.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchTransactions(); }, []);
+
+  const typeLabel = (type: string) => {
+    switch (type) {
+      case 'DEPOSIT': return 'Depósito';
+      case 'WITHDRAWAL': return 'Retiro';
+      case 'LOAN_PAYMENT': return 'Pago de préstamo';
+      default: return type;
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copiado al portapapeles');
   };
+
+  const VerificationRow = ({ label, verified, badge }: { label: string; verified: boolean; badge: string }) => (
+    <div className={`flex items-center justify-between p-3 rounded-lg ${
+      verified
+        ? isDarkMode ? 'bg-green-600/20 border border-green-500/30' : 'bg-green-100 border border-green-200'
+        : isDarkMode ? 'bg-slate-700 border border-slate-600' : 'bg-gray-50 border border-gray-200'
+    }`}>
+      <div className="flex items-center gap-3">
+        {verified
+          ? <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+          : <XCircle className={`w-5 h-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+        }
+        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{label}</span>
+      </div>
+      <Badge className={verified ? 'bg-green-600 text-white' : isDarkMode ? 'bg-slate-600 text-gray-400' : 'bg-gray-200 text-gray-500'}>
+        {verified ? badge : 'Pendiente'}
+      </Badge>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -76,53 +90,10 @@ export function Blockchain() {
           </div>
 
           <div className="space-y-4">
-            <div className={`flex items-center justify-between p-3 rounded-lg ${
-              isDarkMode
-                ? 'bg-green-600/20 border border-green-500/30'
-                : 'bg-green-100 border border-green-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Identidad</span>
-              </div>
-              <Badge className={isDarkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white'}>Verificado</Badge>
-            </div>
-
-            <div className={`flex items-center justify-between p-3 rounded-lg ${
-              isDarkMode
-                ? 'bg-green-600/20 border border-green-500/30'
-                : 'bg-green-100 border border-green-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Wallet</span>
-              </div>
-              <Badge className={isDarkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white'}>Conectado</Badge>
-            </div>
-
-            <div className={`flex items-center justify-between p-3 rounded-lg ${
-              isDarkMode
-                ? 'bg-green-600/20 border border-green-500/30'
-                : 'bg-green-100 border border-green-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>KYC</span>
-              </div>
-              <Badge className={isDarkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white'}>Completo</Badge>
-            </div>
-
-            <div className={`flex items-center justify-between p-3 rounded-lg ${
-              isDarkMode
-                ? 'bg-green-600/20 border border-green-500/30'
-                : 'bg-green-100 border border-green-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Email</span>
-              </div>
-              <Badge className={isDarkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white'}>Verificado</Badge>
-            </div>
+            <VerificationRow label="Identidad" verified={verificationStatus.identity} badge="Verificado" />
+            <VerificationRow label="Wallet" verified={verificationStatus.wallet} badge="Conectado" />
+            <VerificationRow label="KYC" verified={verificationStatus.kyc} badge="Completo" />
+            <VerificationRow label="Email" verified={verificationStatus.email} badge="Verificado" />
           </div>
 
           <div className={`mt-6 p-4 rounded-lg ${
@@ -137,16 +108,18 @@ export function Blockchain() {
               <code className={`text-xs px-2 py-1 rounded flex-1 truncate font-mono ${
                 isDarkMode ? 'bg-slate-700 text-gray-300' : 'bg-gray-200 text-gray-700'
               }`}>
-                {userBlockchainId}
+                {blockchainId}
               </code>
-              <Button
-                size="sm"
-                variant="ghost"
-                className={isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
-                onClick={() => copyToClipboard(userBlockchainId)}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
+              {profile.blockchainHashId.trim() && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                  onClick={() => copyToClipboard(blockchainId)}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -154,30 +127,62 @@ export function Blockchain() {
         <div className={`lg:col-span-2 rounded-2xl p-6 ${
           isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'
         }`}>
-          <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Registro en Blockchain</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Registro en Blockchain</h3>
+            <button
+              onClick={fetchTransactions}
+              className={`flex items-center gap-1 text-sm px-3 py-1 rounded-lg transition-colors ${
+                isDarkMode ? 'hover:bg-slate-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+              }`}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
+          </div>
           <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Historial de transacciones verificadas en la red
           </p>
 
+          {loading && (
+            <p className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Cargando transacciones...
+            </p>
+          )}
+          {!loading && transactions.length === 0 && (
+            <p className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              No hay transacciones registradas.
+            </p>
+          )}
+
           <div className="space-y-4">
-            {recentBlocks.map((block) => (
-              <div key={block.id} className={`p-4 rounded-xl ${
+            {transactions.map((tx) => (
+              <div key={tx.id} className={`p-4 rounded-xl ${
                 isDarkMode ? 'bg-slate-700 border border-slate-600' : 'bg-gray-50 border border-gray-200'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className={isDarkMode ? 'border-slate-500 text-gray-300' : 'border-gray-300 text-gray-700'}>{block.type}</Badge>
+                      <Badge variant="outline" className={isDarkMode ? 'border-slate-500 text-gray-300' : 'border-gray-300 text-gray-700'}>
+                        {typeLabel(tx.type)}
+                      </Badge>
                       <Badge className={`border ${
                         isDarkMode
                           ? 'bg-green-600/20 text-green-400 border-green-500/30'
                           : 'bg-green-100 text-green-700 border-green-200'
                       }`}>
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        {block.confirmations} confirmaciones
+                        Confirmado
                       </Badge>
                     </div>
-                    <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{block.timestamp}</div>
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {new Date(tx.createdAt).toLocaleString('es-CO', {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                  <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    ${Number(tx.amount).toLocaleString()}
                   </div>
                 </div>
 
@@ -187,13 +192,13 @@ export function Blockchain() {
                   <code className={`text-xs flex-1 truncate font-mono ${
                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {block.hash}
+                    {tx.transactionHash}
                   </code>
                   <Button
                     size="sm"
                     variant="ghost"
                     className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
-                    onClick={() => copyToClipboard(block.hash)}
+                    onClick={() => copyToClipboard(tx.transactionHash)}
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -201,7 +206,7 @@ export function Blockchain() {
                     size="sm"
                     variant="ghost"
                     className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
-                    onClick={() => window.open(`https://etherscan.io/tx/${block.hash}`, '_blank')}
+                    onClick={() => window.open(`https://etherscan.io/tx/${tx.transactionHash}`, '_blank')}
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Button>
