@@ -73,4 +73,19 @@ public class LoanRequestController {
         loanRequestService.removeSavedLoanRequest(lenderId, loanId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * HU-12: El prestamista acepta una solicitud de préstamo PENDING.
+     * CA1: Cambia estado a ACTIVE.
+     * CA2: Notifica al prestatario vía transacción LOAN_RECEIPT.
+     * CA3: Registra transacción LOAN_FUNDING para el prestamista.
+     */
+    @PostMapping("/{loanId}/accept")
+    public ResponseEntity<LoanRequestDTO> acceptLoanRequest(
+            @PathVariable Long loanId,
+            @RequestParam Long lenderId
+    ) {
+        LoanRequestDTO result = loanRequestService.acceptLoanRequest(loanId, lenderId);
+        return ResponseEntity.ok(result);
+    }
 }

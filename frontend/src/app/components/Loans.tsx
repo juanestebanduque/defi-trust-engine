@@ -37,6 +37,7 @@ export function Loans() {
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
 
   const userId = getUserId();
 
@@ -112,6 +113,23 @@ export function Loans() {
       toast.error(msg);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  // ── Accept loan ────────────────────────────────────────────────────────────
+  const handleAcceptLoan = async (loan: LoanRequestDTO) => {
+    if (!userId) return;
+    setAcceptingId(loan.loanId);
+    try {
+      await loanMarketService.acceptLoan(loan.loanId, userId);
+      toast.success(`Préstamo de $${Number(loan.amount).toLocaleString()} aprobado. El prestatario ha sido notificado.`);
+      fetchMarket();
+      fetchMyLoans();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'No se pudo aceptar la solicitud.';
+      toast.error(msg);
+    } finally {
+      setAcceptingId(null);
     }
   };
 
@@ -315,18 +333,30 @@ export function Loans() {
                       </div>
                     </div>
 
-                    <Button
-                      className={`ml-4 font-semibold ${
-                        loan.saved
-                          ? isDarkMode ? 'bg-slate-600 hover:bg-slate-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                          : 'bg-green-600 hover:bg-green-700'
-                      }`}
-                      onClick={() => handleToggleSave(loan)}
-                      disabled={savingId === loan.loanId}
-                    >
-                      <Bookmark className={`w-4 h-4 mr-2 ${loan.saved ? 'fill-current' : ''}`} />
-                      {loan.saved ? 'Guardado' : 'Guardar'}
-                    </Button>
+                    <div className="ml-4 flex flex-col gap-2">
+                      {loan.borrowerId !== userId && (
+                        <Button
+                          className="bg-blue-600 hover:bg-blue-700 font-semibold"
+                          onClick={() => handleAcceptLoan(loan)}
+                          disabled={acceptingId === loan.loanId}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          {acceptingId === loan.loanId ? 'Procesando...' : 'Aceptar'}
+                        </Button>
+                      )}
+                      <Button
+                        className={`font-semibold ${
+                          loan.saved
+                            ? isDarkMode ? 'bg-slate-600 hover:bg-slate-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                            : isDarkMode ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                        }`}
+                        onClick={() => handleToggleSave(loan)}
+                        disabled={savingId === loan.loanId}
+                      >
+                        <Bookmark className={`w-4 h-4 mr-2 ${loan.saved ? 'fill-current' : ''}`} />
+                        {loan.saved ? 'Guardado' : 'Guardar'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

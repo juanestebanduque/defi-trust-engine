@@ -1,9 +1,12 @@
 package com.example.trustengine.service;
 
 import com.example.trustengine.dto.LoanRequestDTO;
+import com.example.trustengine.dto.TransactionRequest;
 import com.example.trustengine.entity.Loan;
+import com.example.trustengine.entity.LoanInstallment;
 import com.example.trustengine.entity.SavedLoanRequest;
 import com.example.trustengine.entity.User;
+import com.example.trustengine.repository.LoanInstallmentRepository;
 import com.example.trustengine.repository.LoanRepository;
 import com.example.trustengine.repository.SavedLoanRequestRepository;
 import com.example.trustengine.repository.UserRepository;
@@ -12,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -22,9 +27,11 @@ import java.util.stream.Collectors;
 public class LoanRequestService {
 
     private final LoanRepository loanRepository;
+    private final LoanInstallmentRepository installmentRepository;
     private final SavedLoanRequestRepository savedLoanRequestRepository;
     private final UserRepository userRepository;
     private final TrustScoreService trustScoreService;
+    private final TransactionService transactionService;
 
     /**
      * CA1 + CA2 + CA3: Lista solicitudes PENDING sin prestamista asignado,
@@ -113,6 +120,71 @@ public class LoanRequestService {
             throw new NoSuchElementException("La solicitud guardada no existe");
         }
         savedLoanRequestRepository.deleteByLenderIdAndLoanId(lenderId, loanId);
+    }
+
+    /**
+     * HU-12 CA1 + CA2 + CA3: Acepta una solicitud de préstamo PENDING.
+     * CA1: Cambia estado a ACTIVE y asigna el prestamista.
+     * CA2: Registra transacción LOAN_RECEIPT para notificar al prestatario.
+     * CA3: Registra transacción LOAN_FUNDING para el prestamista.
+     */
+    @Transactional
+    public LoanRequestDTO acceptLoanRequest(Long loanId, Long lenderId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new NoSuchElementException("Solicitud no encontrada: " + loanId));
+
+        if (!"PENDING".equals(loan.getStatus())) {
+            throw new IllegalStateException("La solicitud no está en estado PENDING.");
+        }
+        if (loan.getLender() != null) {
+            throw new IllegalStateException("Esta solicitud ya tiene un prestamista asignado.");
+        }
+
+        User lender = userRepository.findById(lenderId)
+                .orElseThrow(() -> new NoSuchElementException("Prestamista no encontrado: " + lenderId));
+
+        if (lender.getId().equals(loan.getBorrower().getId())) {
+            throw new IllegalStateException("No puedes aceptar tu propia solicitud de préstamo.");
+        }
+
+        // CA1: Cambiar estado a ACTIVE y asignar prestamista
+        loan.setLender(lender);
+        loan.setStatus("ACTIVE");
+        Loan savedLoan = loanRepository.save(loan);
+
+        // Generar cuotas mensuales
+        long termMonths = ChronoUnit.MONTHS.between(loan.getStartDate(), loan.getEndDate());
+        if (termMonths < 1) termMonths = 1;
+        BigDecimal installmentAmount = loan.getAmount()
+                .divide(BigDecimal.valueOf(termMonths), 2, RoundingMode.HALF_UP);
+        for (int i = 1; i <= termMonths; i++) {
+            installmentRepository.save(LoanInstallment.builder()
+                    .loan(savedLoan)
+                    .installmentNumber(i)
+                    .dueDate(loan.getStartDate().plusMonths(i))
+                    .amount(installmentAmount)
+                    .status("PENDING")
+                    .build());
+        }
+
+        // CA3: Transacción para el prestamista
+        transactionService.register(new TransactionRequest(
+                lender.getId(),
+                "LOAN_FUNDING",
+                loan.getAmount(),
+                "Financiamiento de préstamo #" + loanId + " a " + loan.getBorrower().getEmail()
+        ));
+
+        // CA2 + CA3: Transacción para el prestatario como notificación
+        transactionService.register(new TransactionRequest(
+                loan.getBorrower().getId(),
+                "LOAN_RECEIPT",
+                loan.getAmount(),
+                "Préstamo #" + loanId + " aprobado por " + lender.getEmail()
+        ));
+
+        BigDecimal score = trustScoreService.getLatestScore(loan.getBorrower().getId());
+        return toLoanRequestDTO(savedLoan, score, false);
     }
 
     private LoanRequestDTO toLoanRequestDTO(Loan loan, BigDecimal score, boolean saved) {
