@@ -6,21 +6,27 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import { useTheme } from '../context/ThemeContext';
+import { userService } from '../services/userService';
+import { ApiError } from '../services/api';
+import { getStoredProfileData, getEmail, getUserId, saveProfileData } from '../services/session';
 
 export function Settings() {
   const [loading, setLoading] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
 
+  const storedProfile = getStoredProfileData();
+  const email = getEmail();
+  const userId = getUserId();
+
   const [personalData, setPersonalData] = useState({
-    firstName: 'Juan',
-    lastName: 'Pérez',
-    email: 'juan.perez@example.com'
+    firstName: storedProfile.firstName,
+    lastName: storedProfile.lastName,
   });
 
   const [financialData, setFinancialData] = useState({
-    phone: '+1 234 567 8900',
-    address: 'Calle Principal #123',
-    wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1'
+    phone: storedProfile.phone,
+    address: storedProfile.address,
+    wallet: storedProfile.blockchainHashId,
   });
 
   const [personalErrors, setPersonalErrors] = useState<{ [key: string]: string }>({});
@@ -51,12 +57,6 @@ export function Settings() {
       errors.lastName = 'El apellido es obligatorio';
     }
 
-    if (!personalData.email) {
-      errors.email = 'El correo es obligatorio';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
-      errors.email = 'El formato del correo no es válido';
-    }
-
     setPersonalErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -81,13 +81,24 @@ export function Settings() {
       toast.error('Por favor corrige los errores');
       return;
     }
+    if (!userId) { toast.error('No se encontró sesión activa.'); return; }
 
     setLoading(true);
-
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await userService.updateProfile(userId, {
+        firstName: personalData.firstName.trim(),
+        lastName: personalData.lastName.trim(),
+      });
+      saveProfileData({
+        firstName: personalData.firstName.trim(),
+        lastName: personalData.lastName.trim(),
+      });
       toast.success('Información personal actualizada');
-    }, 1000);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'No fue posible actualizar el perfil.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveFinancial = async () => {
@@ -95,13 +106,26 @@ export function Settings() {
       toast.error('Por favor corrige los errores');
       return;
     }
+    if (!userId) { toast.error('No se encontró sesión activa.'); return; }
 
     setLoading(true);
-
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await userService.updateProfile(userId, {
+        phone: financialData.phone.trim(),
+        address: financialData.address.trim(),
+        blockchainHashId: financialData.wallet.trim(),
+      });
+      saveProfileData({
+        phone: financialData.phone.trim(),
+        address: financialData.address.trim(),
+        blockchainHashId: financialData.wallet.trim(),
+      });
       toast.success('Perfil financiero actualizado');
-    }, 1000);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'No fue posible actualizar el perfil.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConnectMetamask = async () => {
@@ -246,18 +270,17 @@ export function Settings() {
               <input
                 id="email"
                 type="email"
-                value={personalData.email}
-                onChange={(e) => handlePersonalChange('email', e.target.value)}
-                disabled={loading}
-                className={`w-full px-4 py-3 rounded-xl outline-none transition-all ${
+                value={email}
+                disabled
+                className={`w-full px-4 py-3 rounded-xl outline-none cursor-not-allowed opacity-60 ${
                   isDarkMode
-                    ? 'bg-slate-700 border border-slate-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30'
-                    : 'bg-gray-50 border border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                    ? 'bg-slate-700 border border-slate-600 text-white'
+                    : 'bg-gray-100 border border-gray-300 text-gray-900'
                 }`}
               />
-              {personalErrors.email && (
-                <p className="text-sm text-red-500">{personalErrors.email}</p>
-              )}
+              <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                El correo no puede modificarse desde aquí.
+              </p>
             </div>
 
             <div className="pt-4">
