@@ -63,5 +63,9 @@ export const loanMarketService = {
     noContentRequest(`/loan-requests/${loanId}/save?lenderId=${lenderId}`),
   getSaved: (lenderId: number) =>
     apiFetch<LoanRequestDTO[]>(`/loan-requests/saved?lenderId=${lenderId}`),
+  acceptLoan: (loanId: number, lenderId: number) =>
+    apiFetch<LoanRequestDTO>(`/loan-requests/${loanId}/accept?lenderId=${lenderId}`, {
+      method: 'POST',
+    }),
 };
 

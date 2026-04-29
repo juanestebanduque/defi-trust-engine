@@ -42,11 +42,13 @@ export function Transactions() {
       case 'DEPOSIT': return 'Depósito';
       case 'WITHDRAWAL': return 'Retiro';
       case 'LOAN_PAYMENT': return 'Pago de préstamo';
+      case 'LOAN_FUNDING': return 'Financiamiento otorgado';
+      case 'LOAN_RECEIPT': return 'Préstamo recibido';
       default: return type;
     }
   };
 
-  const isIncome = (type: string) => type === 'DEPOSIT';
+  const isIncome = (type: string) => type === 'DEPOSIT' || type === 'LOAN_RECEIPT';
 
   const filteredTransactions = transactions.filter(tx => {
     const matchesType =
