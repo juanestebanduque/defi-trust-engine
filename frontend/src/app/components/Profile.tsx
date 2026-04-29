@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Save, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services/userService';
 import { ApiError } from '../services/api';
 import { getStoredProfileData, getUserId, saveProfileData } from '../services/session';
+import { trustScoreService, MyTrustScoreResponse } from '../services/trustScoreService';
 
 interface ProfileProps {
   onProfileUpdated?: () => void;
@@ -15,6 +16,13 @@ export function Profile({ onProfileUpdated }: ProfileProps) {
   const { isDarkMode } = useTheme();
   const storedProfile = getStoredProfileData();
   const [loading, setLoading] = useState(false);
+  const [trustScore, setTrustScore] = useState<MyTrustScoreResponse | null>(null);
+
+  useEffect(() => {
+    trustScoreService.getMyScore()
+      .then(setTrustScore)
+      .catch(() => {});
+  }, []);
   const [formData, setFormData] = useState({
     firstName: storedProfile.firstName,
     lastName: storedProfile.lastName,
@@ -203,25 +211,42 @@ export function Profile({ onProfileUpdated }: ProfileProps) {
               <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tu Trust Score</h3>
             </div>
             <div className="text-center">
-              <div className={`text-5xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>785</div>
-              <div className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Excelente</div>
+              <div className={`text-5xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {trustScore ? trustScore.scoreValue.toFixed(1) : '—'}
+              </div>
+              <div className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {trustScore ? trustScore.levelDescription : 'Cargando...'}
+              </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Historial de pagos</span>
-                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>95%</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Puntualidad</span>
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {trustScore ? `${trustScore.punctualityScore}%` : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Préstamos activos</span>
-                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>2</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Actividad</span>
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {trustScore ? `${trustScore.activityScore}%` : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Antigüedad</span>
-                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>8 meses</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Estabilidad</span>
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {trustScore ? `${trustScore.stabilityScore}%` : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Verificación</span>
-                  <span className="font-medium text-green-500">Completa</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Nivel</span>
+                  <span className={`font-medium ${
+                    trustScore?.level === 'ALTO' ? 'text-green-500' :
+                    trustScore?.level === 'MEDIO' ? 'text-yellow-500' :
+                    trustScore?.level === 'BAJO' ? 'text-red-500' :
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {trustScore ? trustScore.level : '—'}
+                  </span>
                 </div>
               </div>
 
