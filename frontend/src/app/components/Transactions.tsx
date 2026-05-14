@@ -1,0 +1,278 @@
+import { useEffect, useState } from 'react';
+import { Badge } from './ui/badge';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Button } from './ui/button';
+import {
+  CheckCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { transactionService, type TransactionResponse, type TransactionHistoryResponse } from '../services/transactionService';
+import { toast } from 'sonner';
+
+export function Transactions() {
+  const { isDarkMode } = useTheme();
+  const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [sort, setSort] = useState('createdAt,desc');
+  const [historyData, setHistoryData] = useState<TransactionHistoryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await transactionService.getHistory({
+        search: searchTerm || undefined,
+        type: filterType || undefined,
+        status: filterStatus || undefined,
+        page,
+        size,
+        sort,
+      });
+      setHistoryData(data);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'No se pudieron cargar las transacciones.';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    setPage(0); // Reset to first page on filter change
+  }, [searchTerm, filterType, filterStatus]);
+
+  useEffect(() => { 
+    fetchTransactions(); 
+  }, [searchTerm, filterType, filterStatus, page, size, sort]);
+
+  const typeLabel = (type: string) => {
+    switch (type) {
+      case 'DEPOSIT': return 'Depósito';
+      case 'WITHDRAWAL': return 'Retiro';
+      case 'LOAN_PAYMENT': return 'Pago de préstamo';
+      case 'LOAN_FUNDING': return 'Financiamiento otorgado';
+      case 'LOAN_RECEIPT': return 'Préstamo recibido';
+      default: return type;
+    }
+  };
+
+  const isIncome = (type: string) => type === 'DEPOSIT' || type === 'LOAN_RECEIPT';
+
+  const transactions = historyData?.transactions?.content || [];
+  const totalIncome = historyData?.totalReceived || 0;
+  const totalExpense = historyData?.totalSent || 0;
+  const totalTransactions = historyData?.totalTransactions || 0;
+  const totalPages = historyData?.transactions?.totalPages || 1;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Historial de Transacciones
+          </h1>
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+            Registro completo de todas tus operaciones
+          </p>
+        </div>
+        <button
+          onClick={fetchTransactions}
+          disabled={loading}
+          className={`p-2 rounded-lg transition-colors ${
+            isDarkMode ? 'hover:bg-slate-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+          }`}
+          title="Recargar"
+        >
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Recibido</p>
+          <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+            +${typeof totalIncome === 'number' ? totalIncome.toLocaleString() : totalIncome}
+          </div>
+        </div>
+        <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Enviado</p>
+          <div className={`text-2xl font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+            -${typeof totalExpense === 'number' ? totalExpense.toLocaleString() : totalExpense}
+          </div>
+        </div>
+        <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Transacciones Totales</p>
+          <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            {totalTransactions}
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
+        <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Filtros</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="search" className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Buscar</Label>
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+              <input
+                id="search"
+                placeholder="Descripción, hash o ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-9 pr-4 py-2.5 rounded-lg outline-none transition-all ${
+                  isDarkMode
+                    ? 'bg-slate-700 border border-slate-600 text-white placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30'
+                    : 'bg-gray-50 border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                }`}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="type" className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Tipo</Label>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger id="type" className={isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}>
+                <SelectValue placeholder="Todos los tipos" />
+              </SelectTrigger>
+              <SelectContent className={isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}>
+                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="DEPOSIT">Depósitos</SelectItem>
+                <SelectItem value="LOAN_PAYMENT">Pagos de préstamo</SelectItem>
+                <SelectItem value="WITHDRAWAL">Retiros</SelectItem>
+                <SelectItem value="LOAN_FUNDING">Financiamiento otorgado</SelectItem>
+                <SelectItem value="LOAN_RECEIPT">Préstamo recibido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status" className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Estado</Label>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger id="status" className={isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}>
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent className={isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}>
+                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="COMPLETED">Completado</SelectItem>
+                <SelectItem value="PENDING">Pendiente</SelectItem>
+                <SelectItem value="FAILED">Fallido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction list */}
+      <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
+        <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Transacciones ({transactions.length})
+        </h3>
+
+        {loading && (
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Cargando transacciones...</p>
+        )}
+        {!loading && error && (
+          <p className={isDarkMode ? 'text-red-400' : 'text-red-600'}>{error}</p>
+        )}
+        {!loading && !error && transactions.length === 0 && (
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>No hay transacciones que coincidan.</p>
+        )}
+
+        <div className="space-y-3">
+          {transactions.map((tx) => (
+            <div key={tx.id} className={`rounded-xl p-4 ${
+              isDarkMode ? 'bg-slate-700 border border-slate-600' : 'bg-gray-50 border border-gray-200'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    isDarkMode ? 'bg-slate-600' : 'bg-gray-200'
+                  }`}>
+                    {isIncome(tx.type)
+                      ? <ArrowDownRight className="w-4 h-4 text-green-400" />
+                      : <ArrowUpRight className="w-4 h-4 text-red-400" />
+                    }
+                  </div>
+                  <div>
+                    <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {tx.description || typeLabel(tx.type)}
+                    </p>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {new Date(tx.createdAt).toLocaleDateString('es-CO', {
+                        year: 'numeric', month: 'short', day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-lg font-bold ${
+                    isIncome(tx.type)
+                      ? isDarkMode ? 'text-green-400' : 'text-green-600'
+                      : isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                    {isIncome(tx.type) ? '+' : '-'}${Number(tx.amount).toLocaleString()}
+                  </div>
+                  <Badge className={`border ${isDarkMode ? 'bg-green-600/20 text-green-400 border-green-500/30' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    {typeLabel(tx.type)}
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>ID: {tx.id}</span>
+                <code className={`px-2 py-1 rounded text-xs font-mono truncate max-w-xs ${
+                  isDarkMode ? 'bg-slate-600 text-gray-300' : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {tx.transactionHash.slice(0, 18)}...
+                </code>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {!loading && transactions.length > 0 && (
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Página {page + 1} de {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.max(0, page - 1))}
+                disabled={page === 0 || loading}
+                className={isDarkMode ? 'border-slate-600 text-white hover:bg-slate-700' : ''}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= totalPages - 1 || loading}
+                className={isDarkMode ? 'border-slate-600 text-white hover:bg-slate-700' : ''}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

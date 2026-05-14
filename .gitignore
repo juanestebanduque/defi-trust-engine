@@ -1,3 +1,4 @@
+### Maven ###
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
@@ -31,3 +32,9 @@ build/
 
 ### VS Code ###
 .vscode/
+node_modules
+.env
+.env.example
+Design/
+.vscode/
+target/
