@@ -68,14 +68,14 @@ public class TrustScoreService {
     }
 
     /** Determina el nivel según umbrales definidos. */
-    String determineLevel(BigDecimal score) {
+    public String determineLevel(BigDecimal score) {
         if (score.compareTo(THRESHOLD_ALTO) >= 0) return "ALTO";
         if (score.compareTo(THRESHOLD_MEDIO) >= 0) return "MEDIO";
         return "BAJO";
     }
 
     /** Descripción legible del nivel para el usuario. */
-    String getLevelDescription(String level) {
+    public String getLevelDescription(String level) {
         return switch (level) {
             case "ALTO"  -> "Excelente reputación financiera. Acceso a mejores tasas de interés.";
             case "MEDIO" -> "Reputación financiera aceptable. Puede mejorar con pagos puntuales.";

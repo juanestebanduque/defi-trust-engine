@@ -16,10 +16,11 @@ import { userService } from './services/userService';
 import { ThemeProvider } from './context/ThemeContext';
 import { Settings } from './components/Settings';
 import { PublicProfile } from './components/PublicProfile';
+import { Lenders } from './components/Lenders';
 import { toast } from 'sonner';
 
 type AuthView = 'login' | 'register' | 'forgot-password';
-type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'blockchain' | 'settings' | 'public-profile';
+type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'lenders' | 'blockchain' | 'settings' | 'public-profile';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -29,6 +30,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [profileLocked, setProfileLocked] = useState(false);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<number | null>(null);
+  const [profileBackView, setProfileBackView] = useState<DashboardView>('loans');
 
   const fetchAndSetProfile = async (isInitialAuth = false) => {
     let profileData = { firstName: '', lastName: '', phone: '', address: '', blockchainHashId: '' };
@@ -160,6 +162,17 @@ export default function App() {
           <Loans
             onViewProfile={(id) => {
               setSelectedProfileUserId(id);
+              setProfileBackView('loans');
+              setDashboardView('public-profile');
+            }}
+          />
+        );
+      case 'lenders':
+        return (
+          <Lenders
+            onViewProfile={(id) => {
+              setSelectedProfileUserId(id);
+              setProfileBackView('lenders');
               setDashboardView('public-profile');
             }}
           />
@@ -168,7 +181,7 @@ export default function App() {
         return selectedProfileUserId !== null ? (
           <PublicProfile
             userId={selectedProfileUserId}
-            onBack={() => setDashboardView('loans')}
+            onBack={() => setDashboardView(profileBackView)}
           />
         ) : (
           <Dashboard onNavigate={handleNavigate} />

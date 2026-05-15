@@ -2,10 +2,10 @@ package com.example.trustengine.service;
 
 import com.example.trustengine.dto.PublicProfileResponse;
 import com.example.trustengine.dto.TrustScoreResponseDTO;
-import com.example.trustengine.entity.FinancialSummary;
 import com.example.trustengine.entity.Profile;
 import com.example.trustengine.entity.User;
-import com.example.trustengine.repository.FinancialSummaryRepository;
+import com.example.trustengine.repository.LoanInstallmentRepository;
+import com.example.trustengine.repository.LoanRepository;
 import com.example.trustengine.repository.ProfileRepository;
 import com.example.trustengine.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,24 +20,24 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PublicProfileServiceTest {
 
-    @Mock private UserRepository         userRepository;
-    @Mock private ProfileRepository      profileRepository;
-    @Mock private FinancialSummaryRepository financialSummaryRepository;
-    @Mock private TrustScoreService      trustScoreService;
+    @Mock private UserRepository            userRepository;
+    @Mock private ProfileRepository         profileRepository;
+    @Mock private LoanRepository            loanRepository;
+    @Mock private LoanInstallmentRepository installmentRepository;
+    @Mock private TrustScoreService         trustScoreService;
 
     @InjectMocks
     private PublicProfileService publicProfileService;
 
-    private User           activeUser;
-    private User           blockedUser;
-    private Profile        profile;
-    private FinancialSummary financialSummary;
+    private User                activeUser;
+    private User                blockedUser;
+    private Profile             profile;
     private TrustScoreResponseDTO scoreDTO;
 
     @BeforeEach
@@ -71,15 +71,6 @@ class PublicProfileServiceTest {
                 .blockchainHashId("0xABC123")
                 .build();
 
-        financialSummary = FinancialSummary.builder()
-                .id(5L)
-                .user(activeUser)
-                .totalLoansTaken(new BigDecimal("5000.00"))
-                .totalRepaid(new BigDecimal("4500.00"))
-                .missedPayments(1)
-                .currentDebt(new BigDecimal("500.00"))
-                .build();
-
         scoreDTO = TrustScoreResponseDTO.builder()
                 .scoreValue(new BigDecimal("75.00"))
                 .level("ALTO")
@@ -91,14 +82,22 @@ class PublicProfileServiceTest {
                 .build();
     }
 
+    // Stub helper — evitar repetición en cada test
+    private void stubLiveSummary(BigDecimal taken, BigDecimal repaid, long missed, BigDecimal pending) {
+        when(loanRepository.sumLoanAmountByBorrower(1L)).thenReturn(taken);
+        when(installmentRepository.sumPaidAmountByBorrower(1L)).thenReturn(repaid);
+        when(installmentRepository.countOverdueByBorrower(eq(1L), any(LocalDate.class))).thenReturn(missed);
+        when(loanRepository.sumPendingBalanceByBorrower(1L)).thenReturn(pending);
+    }
+
     // ── CA1: Trust Score visible en perfil público ────────────────────────────
 
     @Test
     void getPublicProfile_returnsTrustScoreAndLevel() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
@@ -112,8 +111,8 @@ class PublicProfileServiceTest {
     void getPublicProfile_returnsDisplayNameFromProfile() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
@@ -125,22 +124,27 @@ class PublicProfileServiceTest {
     void getPublicProfile_usesDefaultDisplayNameWhenNoProfile() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.empty());
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
         assertThat(result.displayName()).isEqualTo("Usuario #1");
     }
 
-    // ── CA2: Resumen de historial de pagos ────────────────────────────────────
+    // ── CA2: Resumen real-time de historial de pagos ──────────────────────────
 
     @Test
-    void getPublicProfile_returnsPaymentSummary() {
+    void getPublicProfile_returnsLivePaymentSummary() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(
+                new BigDecimal("5000.00"),
+                new BigDecimal("4500.00"),
+                1L,
+                new BigDecimal("500.00")
+        );
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
@@ -151,11 +155,11 @@ class PublicProfileServiceTest {
     }
 
     @Test
-    void getPublicProfile_returnsZeroSummaryWhenNoFinancialData() {
+    void getPublicProfile_returnsZeroSummaryForNewUser() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
@@ -165,39 +169,50 @@ class PublicProfileServiceTest {
         assertThat(result.pendingBalance()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
+    @Test
+    void getPublicProfile_summaryQueriesUseLiveRepositories() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
+        when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+        when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
+
+        publicProfileService.getPublicProfile(1L);
+
+        // Verificar que se consultaron los repositorios reales y no FinancialSummary
+        verify(loanRepository).sumLoanAmountByBorrower(1L);
+        verify(loanRepository).sumPendingBalanceByBorrower(1L);
+        verify(installmentRepository).sumPaidAmountByBorrower(1L);
+        verify(installmentRepository).countOverdueByBorrower(eq(1L), any(LocalDate.class));
+    }
+
     // ── CA3: Datos privados no expuestos ──────────────────────────────────────
 
     @Test
-    void getPublicProfile_doesNotExposeEmail() {
+    void getPublicProfile_dtoDoesNotContainSensitiveFields() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
-        // PublicProfileResponse tiene campos userId, displayName, trustScore, level,
-        // levelDescription, totalLoansTaken, totalRepaid, missedPayments, pendingBalance, blocked, scoreDate
-        // NO tiene: email, passwordHash, securityQuestion, securityAnswer, phone, address
-        assertThat(result).isNotNull();
-
-        // Verificar que el record no filtra datos sensibles via sus propios campos
-        // (comprobamos que el record no tenga campos que exponen PII)
-        var fields = result.getClass().getRecordComponents();
-        var fieldNames = java.util.Arrays.stream(fields)
+        // Verificar que el record no expone PII vía sus componentes
+        var fieldNames = java.util.Arrays.stream(result.getClass().getRecordComponents())
                 .map(java.lang.reflect.RecordComponent::getName)
                 .toList();
 
-        assertThat(fieldNames).doesNotContain("email", "passwordHash", "securityQuestion",
-                "securityAnswer", "phone", "address", "blockchainHashId");
+        assertThat(fieldNames).doesNotContain(
+                "email", "passwordHash", "securityQuestion",
+                "securityAnswer", "phone", "address", "blockchainHashId"
+        );
     }
 
     @Test
     void getPublicProfile_displayNameNeverContainsEmail() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 
@@ -211,8 +226,11 @@ class PublicProfileServiceTest {
     void getPublicProfile_returnsBlockedTrueWhenUserIsBlocked() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(blockedUser));
         when(profileRepository.findByUserId(2L)).thenReturn(Optional.empty());
-        when(financialSummaryRepository.findByUserId(2L)).thenReturn(Optional.empty());
         when(trustScoreService.getTrustScoreByUserId(2L)).thenReturn(scoreDTO);
+        when(loanRepository.sumLoanAmountByBorrower(2L)).thenReturn(BigDecimal.ZERO);
+        when(installmentRepository.sumPaidAmountByBorrower(2L)).thenReturn(BigDecimal.ZERO);
+        when(installmentRepository.countOverdueByBorrower(eq(2L), any(LocalDate.class))).thenReturn(0L);
+        when(loanRepository.sumPendingBalanceByBorrower(2L)).thenReturn(BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(2L);
 
@@ -223,8 +241,8 @@ class PublicProfileServiceTest {
     void getPublicProfile_returnsBlockedFalseWhenUserIsActive() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(activeUser));
         when(profileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
-        when(financialSummaryRepository.findByUserId(1L)).thenReturn(Optional.of(financialSummary));
         when(trustScoreService.getTrustScoreByUserId(1L)).thenReturn(scoreDTO);
+        stubLiveSummary(BigDecimal.ZERO, BigDecimal.ZERO, 0L, BigDecimal.ZERO);
 
         PublicProfileResponse result = publicProfileService.getPublicProfile(1L);
 

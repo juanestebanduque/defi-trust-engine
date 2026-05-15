@@ -8,7 +8,8 @@ import {
   Shield,
   LogOut,
   Menu,
-  Settings
+  Settings,
+  Users,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useTheme } from '../context/ThemeContext';
@@ -28,6 +29,7 @@ const menuItems = [
   { id: 'profile', label: 'Perfil Financiero', icon: User },
   { id: 'trust-score', label: 'Trust Score', icon: TrendingUp },
   { id: 'loans', label: 'Préstamos', icon: DollarSign },
+  { id: 'lenders', label: 'Prestamistas', icon: Users },
   { id: 'transactions', label: 'Transacciones', icon: History },
   { id: 'blockchain', label: 'Blockchain', icon: Shield },
   { id: 'settings', label: 'Configuración', icon: Settings },

@@ -14,6 +14,14 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
 
     List<Loan> findByLenderId(Long lenderId);
 
+    /** Suma total de los montos prestados (préstamos ACTIVE o PAID) para un prestatario. */
+    @Query("SELECT COALESCE(SUM(l.amount), 0) FROM Loan l WHERE l.borrower.id = :borrowerId AND l.status IN ('ACTIVE','PAID')")
+    BigDecimal sumLoanAmountByBorrower(@Param("borrowerId") Long borrowerId);
+
+    /** Suma de saldo pendiente en préstamos ACTIVE para un prestatario. */
+    @Query("SELECT COALESCE(SUM(l.pendingBalance), 0) FROM Loan l WHERE l.borrower.id = :borrowerId AND l.status = 'ACTIVE'")
+    BigDecimal sumPendingBalanceByBorrower(@Param("borrowerId") Long borrowerId);
+
     /**
      * Solicitudes disponibles: préstamos PENDING sin prestamista asignado,
      * con filtros opcionales por monto.
