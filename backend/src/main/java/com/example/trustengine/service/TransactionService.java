@@ -7,6 +7,10 @@ import com.example.trustengine.entity.User;
 import com.example.trustengine.repository.TransactionRepository;
 import com.example.trustengine.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +63,23 @@ public class TransactionService {
                 .stream()
                 .map(TransactionResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> getMyTransactions(String email, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return transactionRepository.findByUserEmailOrderByCreatedAtDesc(email, pageable)
+                .map(TransactionResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionResponse getByIdForOwner(Long id, String email) {
+        Transaction t = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transacción no encontrada: " + id));
+        if (!t.getUser().getEmail().equals(email)) {
+            throw new SecurityException("Acceso no autorizado a la transacción: " + id);
+        }
+        return TransactionResponse.from(t);
     }
 
     private String generateHash(TransactionRequest request, Long userId) {
