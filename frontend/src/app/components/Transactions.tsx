@@ -8,34 +8,52 @@ import {
   ArrowDownRight,
   Search,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { transactionService, type TransactionResponse } from '../services/transactionService';
-import { getUserId } from '../services/session';
+
+const PAGE_SIZE = 10;
 
 export function Transactions() {
   const { isDarkMode } = useTheme();
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedTx, setSelectedTx] = useState<TransactionResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const fetchTransactions = () => {
-    const userId = getUserId();
-    if (!userId) {
-      setError('No se encontró sesión activa.');
-      setLoading(false);
-      return;
-    }
+  const fetchTransactions = (page = 0) => {
     setLoading(true);
-    transactionService.getByUser(userId)
-      .then(setTransactions)
+    setError('');
+    transactionService.getMyTransactions(page, PAGE_SIZE)
+      .then((data) => {
+        setTransactions(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+        setCurrentPage(data.number);
+      })
       .catch(() => setError('No se pudieron cargar las transacciones.'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchTransactions(); }, []);
+  useEffect(() => { fetchTransactions(0); }, []);
+
+  const openDetail = (tx: TransactionResponse) => {
+    setSelectedTx(tx);
+    setDetailLoading(true);
+    transactionService.getMyTransactionById(tx.id)
+      .then((full) => setSelectedTx(full))
+      .catch(() => {/* keep the list data already set */})
+      .finally(() => setDetailLoading(false));
+  };
 
   const typeLabel = (type: string) => {
     switch (type) {
@@ -86,7 +104,7 @@ export function Transactions() {
           </p>
         </div>
         <button
-          onClick={fetchTransactions}
+          onClick={() => fetchTransactions(currentPage)}
           className={`p-2 rounded-lg transition-colors ${
             isDarkMode ? 'hover:bg-slate-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
           }`}
@@ -99,13 +117,13 @@ export function Transactions() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
-          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Recibido</p>
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Recibido (página)</p>
           <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
             +${totalIncome.toLocaleString()}
           </div>
         </div>
         <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
-          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Enviado</p>
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Enviado (página)</p>
           <div className={`text-2xl font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
             -${totalExpense.toLocaleString()}
           </div>
@@ -113,7 +131,7 @@ export function Transactions() {
         <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
           <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Transacciones Totales</p>
           <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {transactions.length}
+            {totalElements}
           </div>
         </div>
       </div>
@@ -159,7 +177,7 @@ export function Transactions() {
       {/* Transaction list */}
       <div className={`rounded-2xl p-6 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'}`}>
         <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Transacciones ({filteredTransactions.length})
+          Transacciones ({filteredTransactions.length} en vista · {totalElements} total)
         </h3>
 
         {loading && (
@@ -174,9 +192,15 @@ export function Transactions() {
 
         <div className="space-y-3">
           {filteredTransactions.map((tx) => (
-            <div key={tx.id} className={`rounded-xl p-4 ${
-              isDarkMode ? 'bg-slate-700 border border-slate-600' : 'bg-gray-50 border border-gray-200'
-            }`}>
+            <button
+              key={tx.id}
+              onClick={() => openDetail(tx)}
+              className={`w-full text-left rounded-xl p-4 transition-colors cursor-pointer ${
+                isDarkMode
+                  ? 'bg-slate-700 border border-slate-600 hover:bg-slate-600'
+                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -193,7 +217,8 @@ export function Transactions() {
                     </p>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       {new Date(tx.createdAt).toLocaleDateString('es-CO', {
-                        year: 'numeric', month: 'short', day: 'numeric'
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
                       })}
                     </p>
                   </div>
@@ -220,10 +245,126 @@ export function Transactions() {
                   {tx.transactionHash.slice(0, 18)}...
                 </code>
               </div>
-            </div>
+            </button>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Página {currentPage + 1} de {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => fetchTransactions(currentPage - 1)}
+                disabled={currentPage === 0}
+                className={`p-2 rounded-lg transition-colors disabled:opacity-40 ${
+                  isDarkMode ? 'hover:bg-slate-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => fetchTransactions(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                className={`p-2 rounded-lg transition-colors disabled:opacity-40 ${
+                  isDarkMode ? 'hover:bg-slate-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Detail modal */}
+      {selectedTx && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setSelectedTx(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`relative w-full max-w-md mx-4 rounded-2xl p-6 shadow-2xl ${
+              isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'
+            }`}
+          >
+            <button
+              onClick={() => setSelectedTx(null)}
+              className={`absolute top-4 right-4 p-1 rounded-lg ${
+                isDarkMode ? 'hover:bg-slate-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Detalle de Transacción
+            </h2>
+
+            {detailLoading ? (
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Cargando detalle...</p>
+            ) : (
+              <div className="space-y-4">
+                <div className={`flex items-center gap-3 p-4 rounded-xl ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>
+                    {isIncome(selectedTx.type)
+                      ? <ArrowDownRight className="w-6 h-6 text-green-400" />
+                      : <ArrowUpRight className="w-6 h-6 text-red-400" />
+                    }
+                  </div>
+                  <div>
+                    <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {typeLabel(selectedTx.type)}
+                    </p>
+                    <p className={`text-2xl font-bold ${
+                      isIncome(selectedTx.type)
+                        ? isDarkMode ? 'text-green-400' : 'text-green-600'
+                        : isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      {isIncome(selectedTx.type) ? '+' : '-'}${Number(selectedTx.amount).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <DetailRow label="ID" value={String(selectedTx.id)} isDark={isDarkMode} />
+                  <DetailRow
+                    label="Fecha"
+                    value={new Date(selectedTx.createdAt).toLocaleString('es-CO', {
+                      year: 'numeric', month: 'long', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    })}
+                    isDark={isDarkMode}
+                  />
+                  {selectedTx.description && (
+                    <DetailRow label="Descripción" value={selectedTx.description} isDark={isDarkMode} />
+                  )}
+                  <div>
+                    <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Hash SHA-256</p>
+                    <code className={`block w-full text-xs font-mono p-2 rounded-lg break-all ${
+                      isDarkMode ? 'bg-slate-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {selectedTx.transactionHash}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value, isDark }: { label: string; value: string; isDark: boolean }) {
+  return (
+    <div className="flex justify-between items-start gap-4">
+      <p className={`text-sm shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
+      <p className={`text-sm text-right ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{value}</p>
     </div>
   );
 }

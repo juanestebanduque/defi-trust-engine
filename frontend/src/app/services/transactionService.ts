@@ -1,6 +1,6 @@
 import { apiFetch } from './api';
 
-export type TransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'LOAN_PAYMENT';
+export type TransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'LOAN_PAYMENT' | 'LOAN_FUNDING' | 'LOAN_RECEIPT';
 
 export interface TransactionResponse {
   id: number;
@@ -19,6 +19,14 @@ export interface RegisterTransactionPayload {
   description: string;
 }
 
+export interface PagedTransactions {
+  content: TransactionResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
 export const transactionService = {
   register: (payload: RegisterTransactionPayload) =>
     apiFetch<TransactionResponse>('/transactions', {
@@ -27,5 +35,8 @@ export const transactionService = {
     }),
   getByHash: (hash: string) => apiFetch<TransactionResponse>(`/transactions/${hash}`),
   getByUser: (userId: number) => apiFetch<TransactionResponse[]>(`/transactions/user/${userId}`),
+  getMyTransactions: (page = 0, size = 10) =>
+    apiFetch<PagedTransactions>(`/transactions/me?page=${page}&size=${size}`),
+  getMyTransactionById: (id: number) =>
+    apiFetch<TransactionResponse>(`/transactions/me/${id}`),
 };
-

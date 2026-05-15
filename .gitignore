@@ -38,3 +38,6 @@ node_modules
 Design/
 .vscode/
 target/
+.claude/
+.cursor/
+.cursor/
