@@ -13,6 +13,7 @@ import {
   Percent,
   RefreshCw,
   Bookmark,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '../context/ThemeContext';
@@ -22,7 +23,11 @@ import { trustScoreService, type MyTrustScoreResponse } from '../services/trustS
 import { getUserId } from '../services/session';
 import { ApiError } from '../services/api';
 
-export function Loans() {
+interface LoansProps {
+  onViewProfile?: (userId: number) => void;
+}
+
+export function Loans({ onViewProfile }: LoansProps) {
   const { isDarkMode } = useTheme();
 
   // Form state
@@ -342,6 +347,19 @@ export function Loans() {
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           {acceptingId === loan.loanId ? 'Procesando...' : 'Aceptar'}
+                        </Button>
+                      )}
+                      {onViewProfile && loan.borrowerId && (
+                        <Button
+                          className={`font-semibold ${
+                            isDarkMode
+                              ? 'bg-indigo-600/80 hover:bg-indigo-600 text-white border border-indigo-500/50'
+                              : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300'
+                          }`}
+                          onClick={() => onViewProfile(loan.borrowerId!)}
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Ver perfil
                         </Button>
                       )}
                       <Button

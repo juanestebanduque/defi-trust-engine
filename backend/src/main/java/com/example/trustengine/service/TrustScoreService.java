@@ -213,6 +213,29 @@ public class TrustScoreService {
                 .orElse(DEFAULT_STABILITY);
     }
 
+    /** CA1 (HU-16): Recalcula y devuelve el Trust Score de un usuario por su ID. */
+    public TrustScoreResponseDTO getTrustScoreByUserId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
+
+        BigDecimal punctuality = calculatePunctuality(userId);
+        BigDecimal activity    = calculateActivity(userId);
+        BigDecimal stability   = calculateStability(userId);
+
+        TrustScore ts = calculateAndSave(user, punctuality, activity, stability);
+        String level = determineLevel(ts.getScoreValue());
+
+        return TrustScoreResponseDTO.builder()
+                .scoreValue(ts.getScoreValue())
+                .level(level)
+                .calculationDate(ts.getCalculationDate())
+                .punctualityScore(punctuality.setScale(2, RoundingMode.HALF_UP))
+                .activityScore(activity.setScale(2, RoundingMode.HALF_UP))
+                .stabilityScore(stability.setScale(2, RoundingMode.HALF_UP))
+                .levelDescription(getLevelDescription(level))
+                .build();
+    }
+
     /** Obtiene el último score calculado para un usuario. */
     public BigDecimal getLatestScore(Long userId) {
         return trustScoreRepository

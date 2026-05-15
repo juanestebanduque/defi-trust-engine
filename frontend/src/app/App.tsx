@@ -15,10 +15,11 @@ import { clearSession, getEmail, getToken, saveSession, saveProfileData } from '
 import { userService } from './services/userService';
 import { ThemeProvider } from './context/ThemeContext';
 import { Settings } from './components/Settings';
+import { PublicProfile } from './components/PublicProfile';
 import { toast } from 'sonner';
 
 type AuthView = 'login' | 'register' | 'forgot-password';
-type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'blockchain' | 'settings';
+type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'blockchain' | 'settings' | 'public-profile';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,6 +28,7 @@ export default function App() {
   const [userEmail, setUserEmail] = useState(getEmail());
   const [authLoading, setAuthLoading] = useState(true);
   const [profileLocked, setProfileLocked] = useState(false);
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<number | null>(null);
 
   const fetchAndSetProfile = async (isInitialAuth = false) => {
     let profileData = { firstName: '', lastName: '', phone: '', address: '', blockchainHashId: '' };
@@ -154,7 +156,23 @@ export default function App() {
       case 'trust-score':
         return <TrustScore />;
       case 'loans':
-        return <Loans />;
+        return (
+          <Loans
+            onViewProfile={(id) => {
+              setSelectedProfileUserId(id);
+              setDashboardView('public-profile');
+            }}
+          />
+        );
+      case 'public-profile':
+        return selectedProfileUserId !== null ? (
+          <PublicProfile
+            userId={selectedProfileUserId}
+            onBack={() => setDashboardView('loans')}
+          />
+        ) : (
+          <Dashboard onNavigate={handleNavigate} />
+        );
       case 'transactions':
         return <Transactions />;
       case 'blockchain':
