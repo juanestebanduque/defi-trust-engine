@@ -38,4 +38,9 @@ public class LoanInstallment {
 
     @Column(name = "paid_at")
     private OffsetDateTime paidAt;
+
+    /** CA1: marca que este incumplimiento ya fue procesado y penalizado. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean penalized = false;
 }

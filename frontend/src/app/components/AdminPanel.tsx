@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
-  Users, ShieldOff, ShieldCheck, RefreshCw, Search, TrendingUp, Crown
+  Users, ShieldOff, ShieldCheck, RefreshCw, Search, TrendingUp, Crown, Zap
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useTheme } from '../context/ThemeContext';
 import { adminService, type AdminUserDTO } from '../services/adminService';
+import { apiFetch } from '../services/api';
 import { getUserId } from '../services/session';
 import { ApiError } from '../services/api';
 import { toast } from 'sonner';
@@ -16,6 +17,7 @@ export function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionId, setActionId] = useState<number | null>(null);
+  const [runningPenalties, setRunningPenalties] = useState(false);
 
   const myId = getUserId();
 
@@ -28,6 +30,21 @@ export function AdminPanel() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+
+  const handleRunPenalties = async () => {
+    setRunningPenalties(true);
+    try {
+      const result = await apiFetch<{ affectedUsers: number; penalizedInstallments: number; message: string }>(
+        '/admin/penalties/run', { method: 'POST' }
+      );
+      toast.success(result.message);
+      fetchUsers();
+    } catch {
+      toast.error('Error al ejecutar penalizaciones.');
+    } finally {
+      setRunningPenalties(false);
+    }
+  };
 
   const handleBlock = async (user: AdminUserDTO) => {
     setActionId(user.id);
@@ -102,6 +119,28 @@ export function AdminPanel() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Penalty trigger */}
+      <div className={`flex items-center justify-between p-4 rounded-xl border ${
+        isDarkMode ? 'bg-orange-600/10 border-orange-500/30' : 'bg-orange-50 border-orange-200'
+      }`}>
+        <div>
+          <p className={`text-sm font-semibold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+            Penalización de Trust Score
+          </p>
+          <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            El sistema ejecuta esto automáticamente cada medianoche. Usa este botón para forzar la ejecución manual.
+          </p>
+        </div>
+        <Button
+          className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shrink-0 ml-4"
+          onClick={handleRunPenalties}
+          disabled={runningPenalties}
+        >
+          <Zap className="w-4 h-4 mr-2" />
+          {runningPenalties ? 'Procesando...' : 'Ejecutar ahora'}
+        </Button>
       </div>
 
       {/* Toolbar */}

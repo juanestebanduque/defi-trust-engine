@@ -57,23 +57,26 @@ export function Transactions() {
 
   const typeLabel = (type: string) => {
     switch (type) {
-      case 'DEPOSIT': return 'Depósito';
-      case 'WITHDRAWAL': return 'Retiro';
-      case 'LOAN_PAYMENT': return 'Pago de préstamo';
-      case 'LOAN_FUNDING': return 'Financiamiento otorgado';
-      case 'LOAN_RECEIPT': return 'Préstamo recibido';
+      case 'DEPOSIT':       return 'Depósito';
+      case 'WITHDRAWAL':    return 'Retiro';
+      case 'LOAN_PAYMENT':  return 'Pago de préstamo';
+      case 'LOAN_FUNDING':  return 'Financiamiento otorgado';
+      case 'LOAN_RECEIPT':  return 'Préstamo recibido';
+      case 'TRUST_PENALTY': return 'Penalización Trust Score';
       default: return type;
     }
   };
 
-  const isIncome = (type: string) => type === 'DEPOSIT' || type === 'LOAN_RECEIPT';
+  const isPenalty = (type: string) => type === 'TRUST_PENALTY';
+  const isIncome  = (type: string) => type === 'DEPOSIT' || type === 'LOAN_RECEIPT';
 
   const filteredTransactions = transactions.filter(tx => {
     const matchesType =
       filterType === 'all' ||
       (filterType === 'deposit' && tx.type === 'DEPOSIT') ||
       (filterType === 'withdrawal' && tx.type === 'WITHDRAWAL') ||
-      (filterType === 'payment' && tx.type === 'LOAN_PAYMENT');
+      (filterType === 'payment' && tx.type === 'LOAN_PAYMENT') ||
+      (filterType === 'penalty' && tx.type === 'TRUST_PENALTY');
 
     const matchesSearch =
       searchTerm === '' ||
@@ -168,6 +171,7 @@ export function Transactions() {
                 <SelectItem value="deposit">Depósitos</SelectItem>
                 <SelectItem value="payment">Pagos de préstamo</SelectItem>
                 <SelectItem value="withdrawal">Retiros</SelectItem>
+                <SelectItem value="penalty">Penalizaciones</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -204,11 +208,15 @@ export function Transactions() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    isDarkMode ? 'bg-slate-600' : 'bg-gray-200'
+                    isPenalty(tx.type)
+                      ? isDarkMode ? 'bg-orange-600/20' : 'bg-orange-100'
+                      : isDarkMode ? 'bg-slate-600' : 'bg-gray-200'
                   }`}>
-                    {isIncome(tx.type)
-                      ? <ArrowDownRight className="w-4 h-4 text-green-400" />
-                      : <ArrowUpRight className="w-4 h-4 text-red-400" />
+                    {isPenalty(tx.type)
+                      ? <ArrowDownRight className="w-4 h-4 text-orange-400" />
+                      : isIncome(tx.type)
+                        ? <ArrowDownRight className="w-4 h-4 text-green-400" />
+                        : <ArrowUpRight className="w-4 h-4 text-red-400" />
                     }
                   </div>
                   <div>
@@ -225,11 +233,16 @@ export function Transactions() {
                 </div>
                 <div className="text-right">
                   <div className={`text-lg font-bold ${
-                    isIncome(tx.type)
-                      ? isDarkMode ? 'text-green-400' : 'text-green-600'
-                      : isDarkMode ? 'text-red-400' : 'text-red-600'
+                    isPenalty(tx.type)
+                      ? isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                      : isIncome(tx.type)
+                        ? isDarkMode ? 'text-green-400' : 'text-green-600'
+                        : isDarkMode ? 'text-red-400' : 'text-red-600'
                   }`}>
-                    {isIncome(tx.type) ? '+' : '-'}${Number(tx.amount).toLocaleString()}
+                    {isPenalty(tx.type)
+                      ? `-${Number(tx.amount).toLocaleString()} pts`
+                      : isIncome(tx.type) ? '+' : '-'}
+                    {!isPenalty(tx.type) && `$${Number(tx.amount).toLocaleString()}`}
                   </div>
                   <Badge className={`border ${isDarkMode ? 'bg-green-600/20 text-green-400 border-green-500/30' : 'bg-green-100 text-green-700 border-green-200'}`}>
                     <CheckCircle className="w-3 h-3 mr-1" />

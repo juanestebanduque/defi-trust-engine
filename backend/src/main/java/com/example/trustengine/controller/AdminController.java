@@ -1,7 +1,9 @@
 package com.example.trustengine.controller;
 
 import com.example.trustengine.dto.AdminUserDTO;
+import com.example.trustengine.dto.PenaltyRunResult;
 import com.example.trustengine.service.AdminService;
+import com.example.trustengine.service.OverduePaymentScheduler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,7 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final OverduePaymentScheduler overduePaymentScheduler;
 
     /** CA1: Lista todos los usuarios de la plataforma. */
     @GetMapping("/users")
@@ -43,5 +46,14 @@ public class AdminController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /**
+     * Disparo manual del proceso de penalización (útil para pruebas).
+     * En producción el scheduler lo ejecuta automáticamente cada medianoche.
+     */
+    @PostMapping("/penalties/run")
+    public ResponseEntity<PenaltyRunResult> runPenalties() {
+        return ResponseEntity.ok(overduePaymentScheduler.detectAndPenalize());
     }
 }
