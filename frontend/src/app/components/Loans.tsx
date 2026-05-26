@@ -13,6 +13,7 @@ import {
   Percent,
   RefreshCw,
   Bookmark,
+  BarChart2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +22,7 @@ import { loanMarketService, type LoanRequestDTO } from '../services/loanMarketSe
 import { trustScoreService, type MyTrustScoreResponse } from '../services/trustScoreService';
 import { getUserId } from '../services/session';
 import { ApiError } from '../services/api';
+import { BorrowerRiskAnalysis } from './BorrowerRiskAnalysis';
 
 export function Loans() {
   const { isDarkMode } = useTheme();
@@ -38,6 +40,7 @@ export function Loans() {
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [riskAnalysisTarget, setRiskAnalysisTarget] = useState<{ id: number; email: string } | null>(null);
 
   const userId = getUserId();
 
@@ -346,6 +349,17 @@ export function Loans() {
                       )}
                       <Button
                         className={`font-semibold ${
+                          isDarkMode
+                            ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                        }`}
+                        onClick={() => setRiskAnalysisTarget({ id: loan.borrowerId, email: loan.borrowerEmail })}
+                      >
+                        <BarChart2 className="w-4 h-4 mr-2" />
+                        Análisis de Riesgo
+                      </Button>
+                      <Button
+                        className={`font-semibold ${
                           loan.saved
                             ? isDarkMode ? 'bg-slate-600 hover:bg-slate-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                             : isDarkMode ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
@@ -460,6 +474,14 @@ export function Loans() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {riskAnalysisTarget && (
+        <BorrowerRiskAnalysis
+          borrowerId={riskAnalysisTarget.id}
+          borrowerEmail={riskAnalysisTarget.email}
+          onClose={() => setRiskAnalysisTarget(null)}
+        />
+      )}
     </div>
   );
 }
