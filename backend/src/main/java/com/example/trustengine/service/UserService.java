@@ -66,6 +66,11 @@ public class UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas."));
 
+        // CA2: bloqueo permanente por administrador
+        if ("BLOCKED".equals(user.getStatus())) {
+            throw new IllegalArgumentException("Tu cuenta ha sido bloqueada por el administrador. Contacta al soporte.");
+        }
+
         if (user.getLockoutTime() != null && user.getLockoutTime().isAfter(OffsetDateTime.now())) {
             throw new IllegalArgumentException("Tu cuenta está temporalmente bloqueada. Intenta de nuevo más tarde.");
         }

@@ -37,11 +37,35 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
+        seedAdmin();
         User alice = seedAlice();
         User bob   = seedBob();
         seedCarlos();
 
         log.info("✅ Test data seeded. Users: alice@trustfi.com, bob@trustfi.com, carlos@trustfi.com (password: test1234)");
+        log.info("✅ Admin seeded: admin@trustfi.com (password: admin1234)");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin — platform administrator
+    // ─────────────────────────────────────────────────────────────────────────
+    private void seedAdmin() {
+        User admin = userRepository.save(User.builder()
+                .email("admin@trustfi.com")
+                .passwordHash(passwordEncoder.encode("admin1234"))
+                .securityQuestion("¿Cuál es el nombre de tu mascota?")
+                .securityAnswer(passwordEncoder.encode("firulais"))
+                .role("ADMIN")
+                .status("ACTIVE")
+                .build());
+
+        profileRepository.save(Profile.builder()
+                .user(admin)
+                .fullName("Administrador TrustFi")
+                .phone("+57 300 000 0000")
+                .address("TrustFi HQ, Bogotá")
+                .blockchainHashId("0xADMIN0000000000000000000000000000000000")
+                .build());
     }
 
     // ─────────────────────────────────────────────────────────────────────────

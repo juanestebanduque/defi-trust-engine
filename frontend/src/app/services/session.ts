@@ -53,6 +53,10 @@ export function getEmail(): string {
   return localStorage.getItem(SESSION_KEYS.email) ?? '';
 }
 
+export function getRole(): string {
+  return localStorage.getItem(SESSION_KEYS.role) ?? '';
+}
+
 export interface StoredProfileData {
   firstName: string;
   lastName: string;

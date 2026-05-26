@@ -11,20 +11,22 @@ import { Transactions } from './components/Transactions';
 import { Blockchain } from './components/Blockchain';
 import { Toaster } from './components/ui/sonner';
 import { authService } from './services/authService';
-import { clearSession, getEmail, getToken, saveSession, saveProfileData } from './services/session';
+import { clearSession, getEmail, getRole, getToken, saveSession, saveProfileData } from './services/session';
 import { userService } from './services/userService';
 import { ThemeProvider } from './context/ThemeContext';
 import { Settings } from './components/Settings';
+import { AdminPanel } from './components/AdminPanel';
 import { toast } from 'sonner';
 
 type AuthView = 'login' | 'register' | 'forgot-password';
-type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'blockchain' | 'settings';
+type DashboardView = 'dashboard' | 'profile' | 'trust-score' | 'loans' | 'transactions' | 'blockchain' | 'settings' | 'admin';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authView, setAuthView] = useState<AuthView>('login');
   const [dashboardView, setDashboardView] = useState<DashboardView>('dashboard');
   const [userEmail, setUserEmail] = useState(getEmail());
+  const [userRole, setUserRole] = useState(getRole());
   const [authLoading, setAuthLoading] = useState(true);
   const [profileLocked, setProfileLocked] = useState(false);
 
@@ -86,7 +88,12 @@ export default function App() {
         const me = await authService.getMe();
         saveSession(me);
         setUserEmail(me.email);
-        await fetchAndSetProfile(true);
+        setUserRole(me.role);
+        if (me.role === 'ADMIN') {
+          setDashboardView('admin');
+        } else {
+          await fetchAndSetProfile(true);
+        }
         setIsAuthenticated(true);
       } catch {
         clearSession();
@@ -111,13 +118,20 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
+    const role = getRole();
     setUserEmail(getEmail());
-    await fetchAndSetProfile(true);
+    setUserRole(role);
+    if (role === 'ADMIN') {
+      setDashboardView('admin');
+    } else {
+      await fetchAndSetProfile(true);
+    }
     setIsAuthenticated(true);
   };
 
   const handleRegister = async () => {
     setUserEmail(getEmail());
+    setUserRole(getRole());
     await fetchAndSetProfile(true);
     setIsAuthenticated(true);
   };
@@ -125,6 +139,7 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserEmail('');
+    setUserRole('');
     setAuthView('login');
     clearSession();
     setProfileLocked(false);
@@ -161,6 +176,8 @@ export default function App() {
         return <Blockchain />;
       case 'settings':
         return <Settings />;
+      case 'admin':
+        return <AdminPanel />;
       default:
         return <Dashboard onNavigate={handleNavigate} />;
     }
@@ -195,6 +212,7 @@ export default function App() {
         onNavigate={handleNavigate}
         onLogout={handleLogout}
         userEmail={userEmail}
+        userRole={userRole}
         profileLocked={profileLocked}
         onForceProfile={() => setDashboardView('profile')}
       >

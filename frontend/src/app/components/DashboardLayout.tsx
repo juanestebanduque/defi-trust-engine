@@ -8,7 +8,8 @@ import {
   Shield,
   LogOut,
   Menu,
-  Settings
+  Settings,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useTheme } from '../context/ThemeContext';
@@ -19,17 +20,23 @@ interface DashboardLayoutProps {
   onNavigate: (view: string) => void;
   onLogout: () => void;
   userEmail: string;
+  userRole: string;
   profileLocked: boolean;
   onForceProfile: () => void;
 }
 
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'profile', label: 'Perfil Financiero', icon: User },
-  { id: 'trust-score', label: 'Trust Score', icon: TrendingUp },
-  { id: 'loans', label: 'Préstamos', icon: DollarSign },
-  { id: 'transactions', label: 'Transacciones', icon: History },
-  { id: 'blockchain', label: 'Blockchain', icon: Shield },
+const userMenuItems = [
+  { id: 'dashboard',    label: 'Dashboard',          icon: LayoutDashboard },
+  { id: 'profile',      label: 'Perfil Financiero',  icon: User },
+  { id: 'trust-score',  label: 'Trust Score',         icon: TrendingUp },
+  { id: 'loans',        label: 'Préstamos',           icon: DollarSign },
+  { id: 'transactions', label: 'Transacciones',       icon: History },
+  { id: 'blockchain',   label: 'Blockchain',          icon: Shield },
+  { id: 'settings',     label: 'Configuración',       icon: Settings },
+];
+
+const adminMenuItems = [
+  { id: 'admin', label: 'Gestión de Usuarios', icon: ShieldAlert },
   { id: 'settings', label: 'Configuración', icon: Settings },
 ];
 
@@ -39,10 +46,13 @@ export function DashboardLayout({
   onNavigate,
   onLogout,
   userEmail,
+  userRole,
   profileLocked,
   onForceProfile
 }: DashboardLayoutProps) {
   const { isDarkMode } = useTheme();
+  const isAdmin = userRole === 'ADMIN';
+  const menuItems = isAdmin ? adminMenuItems : userMenuItems;
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-slate-900' : 'bg-gray-50'}`}>
