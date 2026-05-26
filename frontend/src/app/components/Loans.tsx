@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Bookmark,
   BarChart2,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '../context/ThemeContext';
@@ -23,6 +24,7 @@ import { trustScoreService, type MyTrustScoreResponse } from '../services/trustS
 import { getUserId } from '../services/session';
 import { ApiError } from '../services/api';
 import { BorrowerRiskAnalysis } from './BorrowerRiskAnalysis';
+import { LoanContract } from './LoanContract';
 
 export function Loans() {
   const { isDarkMode } = useTheme();
@@ -41,6 +43,7 @@ export function Loans() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [riskAnalysisTarget, setRiskAnalysisTarget] = useState<{ id: number; email: string } | null>(null);
+  const [contractLoanId, setContractLoanId] = useState<number | null>(null);
 
   const userId = getUserId();
 
@@ -428,8 +431,22 @@ export function Loans() {
                           Préstamo #{loan.loanId}
                         </span>
                       </div>
-                      <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        ${Number(loan.amount).toLocaleString()}
+                      <div className="flex items-center gap-3">
+                        <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          ${Number(loan.amount).toLocaleString()}
+                        </div>
+                        <Button
+                          size="sm"
+                          className={`font-semibold ${
+                            isDarkMode
+                              ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                          }`}
+                          onClick={() => setContractLoanId(loan.loanId)}
+                        >
+                          <FileText className="w-4 h-4 mr-1.5" />
+                          Ver Contrato
+                        </Button>
                       </div>
                     </div>
 
@@ -480,6 +497,13 @@ export function Loans() {
           borrowerId={riskAnalysisTarget.id}
           borrowerEmail={riskAnalysisTarget.email}
           onClose={() => setRiskAnalysisTarget(null)}
+        />
+      )}
+
+      {contractLoanId !== null && (
+        <LoanContract
+          loanId={contractLoanId}
+          onClose={() => setContractLoanId(null)}
         />
       )}
     </div>
